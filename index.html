@@ -68,6 +68,11 @@
   .sp svg { width:70px; height:70px; }
   .sp.locked svg { filter:brightness(0) opacity(.25); }
   .sp .rare { color:#b8860b; font-weight:700; font-size:.75rem; }
+  .cr img { width:100%; display:block; animation:bob 3.2s ease-in-out infinite; }
+  .cr .nm { position:absolute; left:50%; top:100%; transform:translateX(-50%); margin-top:2px; background:#fffd; padding:2px 10px; border-radius:99px; font-weight:700; font-size:.85rem; white-space:nowrap; opacity:0; animation:nm 4.5s ease; pointer-events:none; }
+  @keyframes nm { 0%{opacity:0} 12%,75%{opacity:1} 100%{opacity:0} }
+  .sp img { width:70px; height:70px; object-fit:contain; }
+  .sp.locked img { filter:brightness(0) opacity(.25); }
   #calmsg { min-height:1.4em; font-weight:600; color:var(--accent); }
   .tag { display:inline-block; background:#fff3cd; border-radius:8px; padding:2px 8px; font-size:.8rem; margin-left:6px; }
 </style>
@@ -127,6 +132,10 @@
         <button data-v="pause">Pause (elles restent)</button>
       </div>
     </div>
+    <div class="row"><label>Créatures intégrées</label>
+      <div class="seg" id="bltSeg"><button data-v="1">Utiliser</button><button data-v="0">Seulement mes images</button></div>
+      <div id="customInfo" style="margin-top:6px;opacity:.75;font-size:.9rem"></div>
+    </div>
     <div class="row"><label>Calibrage (facultatif)</label>
       <button id="calBtn" class="seg" style="border:2px solid #cfd8e3;background:#fff;border-radius:10px;padding:8px 12px">Lancer : 4 s de silence, puis 4 s de voix normale</button>
       <div id="calmsg"></div>
@@ -171,7 +180,38 @@ function makeSpecies(key){
 }
 const SPECIES = {}; for(const k in SCENES) SPECIES[k]=makeSpecies(k);
 
+/* ---------- Créatures personnalisées : dossier creatures/ ---------- */
+const IMG_RE=/\.(png|jpe?g|gif|webp|svg)$/i;
+let CUSTOM=[];
+function toSpecies(file){
+  return { id:"img:"+file, nom:file.replace(IMG_RE,""), img:"creatures/"+encodeURIComponent(file), rare:false };
+}
+async function loadCustom(){
+  let files=null;
+  try{                                   // 1) liste.json facultatif (tableau de noms de fichiers)
+    const r=await fetch("creatures/liste.json",{cache:"no-cache"});
+    if(r.ok){ const j=await r.json(); if(Array.isArray(j)) files=j; }
+  }catch(e){}
+  if(!files){                            // 2) sinon, l'API publique de GitHub liste le dossier
+    try{
+      let owner="Dendentown", repo="shypokemon";
+      if(/\.github\.io$/.test(location.hostname)){
+        owner=location.hostname.split(".")[0];
+        const seg=location.pathname.split("/")[1]; if(seg) repo=seg;
+      }
+      const r=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/creatures`);
+      if(r.ok){ const j=await r.json(); files=j.filter(x=>x.type==="file").map(x=>x.name); }
+    }catch(e){}
+  }
+  CUSTOM=(files||[]).filter(f=>IMG_RE.test(f)).sort((a,b)=>a.localeCompare(b,"fr")).map(toSpecies);
+  const n=CUSTOM.length;
+  const el=$("#customInfo");
+  if(el) el.textContent = n ? n+" créature"+(n>1?"s":"")+" chargée"+(n>1?"s":"")+" depuis le dossier creatures/" : "Aucune image trouvée dans creatures/ (voir le README).";
+}
+function useBuiltin(){ return cfg.builtin===undefined ? CUSTOM.length===0 : cfg.builtin; }
+
 function critterSVG(s){
+  if(s.img) return `<img src="${s.img}" alt="${s.nom}" loading="lazy" draggable="false" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'">`;
   const c1=`hsl(${s.h} 68% 64%)`, c2=`hsl(${s.h} 55% 44%)`, bl=`hsl(${(s.h+20)%360} 80% 88%)`;
   const bodies=[
     `<ellipse cx="50" cy="60" rx="33" ry="30"/>`,
@@ -298,7 +338,8 @@ function drawStars(){
     g.beginPath(); g.arc(Math.random()*c.width,Math.random()*c.height,Math.random()*1.6+.3,0,7); g.fill(); }
 }
 function pickSpecies(){
-  const list=SPECIES[cfg.scene];
+  const list=(useBuiltin()?SPECIES[cfg.scene]:[]).concat(CUSTOM);
+  if(!list.length) return SPECIES[cfg.scene][0];
   const w=list.map(s=>s.rare?1:5), tot=w.reduce((a,b)=>a+b,0);
   let r=Math.random()*tot; for(let i=0;i<list.length;i++){ r-=w[i]; if(r<=0) return list[i]; }
   return list[0];
@@ -307,10 +348,10 @@ function spawn(){
   if(crit.length>=MAXC) return;
   const sp=pickSpecies(), S=SCENES[cfg.scene];
   const el=document.createElement("div"); el.className="cr";
-  el.innerHTML=critterSVG(sp);
+  el.innerHTML=critterSVG(sp)+`<span class="nm">${sp.nom.replace(/[<>&]/g,"")}</span>`;
   const x=6+Math.random()*88, y=S.zone[0]+Math.random()*(S.zone[1]-S.zone[0]);
   el.style.left=x+"%"; el.style.top=y+"%"; el.style.zIndex=Math.round(y*10);
-  el.querySelector("svg").style.animationDelay=(-Math.random()*3)+"s";
+  el.querySelector("svg,img").style.animationDelay=(-Math.random()*3)+"s";
   $("#critters").appendChild(el);
   crit.push({el,sp,x});
   seen[sp.id]=(seen[sp.id]||0)+1; store.set("seen",seen);
@@ -387,17 +428,23 @@ $("#bCol").onclick=()=>{ renderCollection(); openPanel("#pCol"); };
 function syncSettings(){
   const map={goalSeg:"goal",rhySeg:"rhythm",modeSeg:"mode"};
   for(const id in map) $$("#"+id+" button").forEach(b=>b.classList.toggle("on",b.dataset.v===cfg[map[id]]));
+  $$("#bltSeg button").forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===useBuiltin()));
   $("#thr").style.display = cfg.goal==="perso"?"block":"none";
   $("#thr").value=cfg.thr;
 }
 for(const [id,key] of [["goalSeg","goal"],["rhySeg","rhythm"],["modeSeg","mode"]]){
   $$("#"+id+" button").forEach(b=>b.onclick=()=>{ cfg[key]=b.dataset.v; save(); syncSettings(); });
 }
+$$("#bltSeg button").forEach(b=>b.onclick=()=>{ cfg.builtin=b.dataset.v==="1"; save(); syncSettings(); });
+loadCustom();
 $("#thr").oninput=e=>{ cfg.thr=+e.target.value; save(); };
 
 function renderCollection(){
   let n=0,tot=0;
-  $("#colGrid").innerHTML = Object.keys(SCENES).map(k=>{
+  const card=s=>{ tot++; const c=seen[s.id]||0; if(c) n++;
+    return `<div class="sp ${c?"":"locked"}">${critterSVG(s)}<div>${c?s.nom.replace(/[<>&]/g,""):"???"}</div>${c?`<div style="opacity:.6">vu ${c} fois</div>`:""}</div>`; };
+  const mine = CUSTOM.length ? `<div style="grid-column:1/-1;font-weight:700;margin-top:6px">Mes créatures</div>`+CUSTOM.map(card).join("") : "";
+  $("#colGrid").innerHTML = mine + Object.keys(SCENES).map(k=>{
     return `<div style="grid-column:1/-1;font-weight:700;margin-top:6px">${SCENES[k].nom}</div>` +
       SPECIES[k].map(s=>{
         tot++; const c=seen[s.id]||0; if(c) n++;
