@@ -1,0 +1,4 @@
+Place ici tes images de créatures (png, jpg, gif, webp ou svg).
+Chaque image devient une créature collectable dans le jeu.
+Son nom dans le jeu est le nom du fichier sans l'extension :
+"Gloubi.png" donne la créature "Gloubi".

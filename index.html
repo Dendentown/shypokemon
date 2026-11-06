@@ -169,22 +169,21 @@ function toSpecies(file){
   return { id:"img:"+file, nom:file.replace(IMG_RE,""), img:"creatures/"+encodeURIComponent(file), rare:false };
 }
 async function loadCustom(){
-  let files=null;
-  try{                                   // 1) liste.json facultatif (tableau de noms de fichiers)
-    const r=await fetch("creatures/liste.json",{cache:"no-cache"});
-    if(r.ok){ const j=await r.json(); if(Array.isArray(j)) files=j; }
+  const set=new Set();
+  try{                                   // 1) creatures/liste.js (fonctionne aussi en ouvrant le fichier sur l'ordinateur)
+    await new Promise(res=>{ const sc=document.createElement("script"); sc.src="creatures/liste.js"; sc.onload=sc.onerror=res; document.head.appendChild(sc); });
+    if(Array.isArray(window.LISTE_CREATURES)) window.LISTE_CREATURES.forEach(f=>set.add(f));
   }catch(e){}
-  if(!files){                            // 2) sinon, l'API publique de GitHub liste le dossier
-    try{
-      let owner="Dendentown", repo="shypokemon";
-      if(/\.github\.io$/.test(location.hostname)){
-        owner=location.hostname.split(".")[0];
-        const seg=location.pathname.split("/")[1]; if(seg) repo=seg;
-      }
-      const r=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/creatures`);
-      if(r.ok){ const j=await r.json(); files=j.filter(x=>x.type==="file").map(x=>x.name); }
-    }catch(e){}
-  }
+  try{                                   // 2) l'API publique de GitHub liste le dossier (images ajoutées en ligne)
+    let owner="Dendentown", repo="shypokemon";
+    if(/\.github\.io$/.test(location.hostname)){
+      owner=location.hostname.split(".")[0];
+      const seg=location.pathname.split("/")[1]; if(seg) repo=seg;
+    }
+    const r=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/creatures`);
+    if(r.ok){ const j=await r.json(); j.filter(x=>x.type==="file").forEach(x=>set.add(x.name)); }
+  }catch(e){}
+  const files=[...set];
   CUSTOM=(files||[]).filter(f=>IMG_RE.test(f)).sort((a,b)=>a.localeCompare(b,"fr")).map(toSpecies);
   const n=CUSTOM.length;
   const el=$("#customInfo");

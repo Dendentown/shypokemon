@@ -14,4 +14,4 @@ Un seul fichier, `index.html`. Pour le publier : Settings → Pages → Deploy f
 
 Dépose les images dans `creatures/` (sur GitHub : `creatures` → Add file → Upload files). Elles apparaissent au prochain chargement de la page. Seules les images de ce dossier apparaissent dans le jeu et dans la collection (grisées tant qu'elles n'ont pas été rencontrées).
 
-La page lit le dossier via l'API publique de GitHub. Hors ligne ou en ouvrant le fichier sans le dépôt, ajoute un fichier `creatures/liste.json` contenant la liste des noms de fichiers, par exemple `["Gloubi.png","Tidou.png"]`.
+La page lit `creatures/liste.js` et le dossier via l'API publique de GitHub, et combine les deux. En ouvrant `index.html` depuis ton ordinateur, seule `liste.js` est lue : ajoute-y le nom de tes nouvelles images dans la liste entre crochets, par exemple `["Gloubi.png","Tidou.png"]`.
