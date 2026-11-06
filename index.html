@@ -40,7 +40,7 @@
   @keyframes pop { from { transform:translate(-50%,-100%) scale(0); } to { transform:translate(-50%,-100%) scale(1); } }
   @keyframes bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
   #fog { position:absolute; inset:0; opacity:0; transition:opacity 2s; pointer-events:none; }
-  #fog.on { opacity:.55; }
+  #fog.on { opacity:.4; }
 
   /* Barre d'outils */
   #bar { position:absolute; left:0; right:0; bottom:0; padding:10px 14px; display:flex; gap:10px; align-items:center; background:linear-gradient(transparent,#0005); opacity:.0; transition:opacity .3s; }
@@ -94,8 +94,8 @@
 <section id="stage" class="screen">
   <div id="sky"></div>
   <canvas id="stars"></canvas>
-  <div id="critters"></div>
   <div id="fog"></div>
+  <div id="critters"></div>
   <div id="bar">
     <button id="bSet">⚙ Réglages</button>
     <button id="bCol">📖 Collection</button>
@@ -258,7 +258,7 @@ function goalThreshold(){
     const {s,p}=cfg.cal, d=Math.max(8,p-s);
     return s + d*({silence:0.18,indiv:0.38,binome:0.65}[cfg.goal]);
   }
-  return {silence:28,indiv:42,binome:56}[cfg.goal];
+  return {silence:42,indiv:56,binome:68}[cfg.goal];
 }
 
 /* ---------- Simulation de la scène ---------- */
