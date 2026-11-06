@@ -33,7 +33,7 @@
   #stage { overflow:hidden; }
   #sky { position:absolute; inset:0; }
   #stars { position:absolute; inset:0; display:none; }
-  #critters { position:absolute; inset:0; }
+  #critters { position:absolute; inset:0; z-index:1; pointer-events:none; }
   .cr { position:absolute; width:clamp(40px,6vw,72px); transform:translate(-50%,-100%); transition:transform 1.6s ease-in, opacity 1.2s; animation:pop .9s cubic-bezier(.3,1.6,.5,1); }
   .cr svg { width:100%; display:block; animation:bob 3.2s ease-in-out infinite; overflow:visible; }
   .cr.leave { opacity:0; }
@@ -43,7 +43,7 @@
   #fog.on { opacity:.4; }
 
   /* Barre d'outils */
-  #bar { position:absolute; left:0; right:0; bottom:0; padding:10px 14px; display:flex; gap:10px; align-items:center; background:linear-gradient(transparent,#0005); opacity:.0; transition:opacity .3s; }
+  #bar { z-index:3; position:absolute; left:0; right:0; bottom:0; padding:10px 14px; display:flex; gap:10px; align-items:center; background:linear-gradient(transparent,#0005); opacity:.0; transition:opacity .3s; }
   #stage:hover #bar, #bar:focus-within, #bar.show { opacity:1; }
   #bar button { background:var(--card); border:0; border-radius:12px; padding:9px 14px; font-weight:600; }
   #meter { flex:1; height:12px; border-radius:99px; background:#ffffff66; position:relative; overflow:hidden; }
@@ -66,10 +66,21 @@
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; }
   .sp { background:#f4f7fb; border-radius:14px; padding:8px; text-align:center; font-size:.85rem; }
   .sp svg { width:70px; height:70px; }
-    .cr img { width:100%; display:block; animation:bob 3.2s ease-in-out infinite; }
+    .cr.t-rare img { filter:drop-shadow(0 0 7px #7fdcff); }
+  .cr.t-legendaire { width:clamp(60px,9vw,104px); }
+  .cr.t-legendaire img { filter:drop-shadow(0 0 14px #ffd23c) drop-shadow(0 0 4px #fff); }
+  .cr.t-rare .nm { background:#d9f4ff; }
+  .cr.t-legendaire .nm { background:#fff1b8; }
+  #banner { position:absolute; top:22px; left:50%; transform:translate(-50%,-30px); padding:10px 26px; border-radius:99px; font-weight:800; font-size:1.2rem; background:#fff; box-shadow:0 6px 22px #0004; opacity:0; transition:all .5s; pointer-events:none; z-index:5; }
+  #banner.show { opacity:1; transform:translate(-50%,0); }
+  #banner.rare { background:#d9f4ff; }
+  #banner.legendaire { background:linear-gradient(90deg,#fff1b8,#ffd23c,#fff1b8); }
+  .cr img { width:100%; display:block; animation:bob 3.2s ease-in-out infinite; }
   .cr .nm { position:absolute; left:50%; top:100%; transform:translateX(-50%); margin-top:2px; background:#fffd; padding:2px 10px; border-radius:99px; font-weight:700; font-size:.85rem; white-space:nowrap; opacity:0; animation:nm 4.5s ease; pointer-events:none; }
   @keyframes nm { 0%{opacity:0} 12%,75%{opacity:1} 100%{opacity:0} }
   .sp img { width:70px; height:70px; object-fit:contain; }
+  .sp.t-rare:not(.locked) { background:#e3f6ff; }
+  .sp.t-legendaire:not(.locked) { background:#fff3c4; }
   .sp.locked img { filter:grayscale(1) brightness(1.05) opacity(.55); }
   #calmsg { min-height:1.4em; font-weight:600; color:var(--accent); }
   .tag { display:inline-block; background:#fff3cd; border-radius:8px; padding:2px 8px; font-size:.8rem; margin-left:6px; }
@@ -96,6 +107,7 @@
   <canvas id="stars"></canvas>
   <div id="fog"></div>
   <div id="critters"></div>
+  <div id="banner"></div>
   <div id="bar">
     <button id="bSet">⚙ Réglages</button>
     <button id="bCol">📖 Collection</button>
@@ -171,32 +183,50 @@ const SCENES = {
 
 /* ---------- Créatures personnalisées : dossier creatures/ ---------- */
 const IMG_RE=/\.(png|jpe?g|gif|webp|svg)$/i;
+const TIERS=[
+  {k:"commun",     nom:"Communes",    poids:70, etoiles:""},
+  {k:"rare",       nom:"Rares",       poids:25, etoiles:"★"},
+  {k:"legendaire", nom:"Légendaires", poids:5,  etoiles:"★★★"}];
+const TIER=Object.fromEntries(TIERS.map(t=>[t.k,t]));
 let CUSTOM=[];
 let GH={owner:"Dendentown",repo:"shypokemon"};
 if(/\.github\.io$/.test(location.hostname)){ GH.owner=location.hostname.split(".")[0]; const sg=location.pathname.split("/")[1]; if(sg) GH.repo=sg; }
-function rawURL(file){ return `https://raw.githubusercontent.com/${GH.owner}/${GH.repo}/main/creatures/`+encodeURIComponent(file); }
-function toSpecies(file){
-  return { id:"img:"+file, file, nom:file.replace(IMG_RE,""), img:"creatures/"+encodeURIComponent(file), rare:false };
+const encPath=p=>p.split("/").map(encodeURIComponent).join("/");
+function rawURL(path){ return `https://raw.githubusercontent.com/${GH.owner}/${GH.repo}/main/creatures/`+encPath(path); }
+function toSpecies(tier,file){
+  const path=tier+"/"+file;
+  return { id:"img:"+path, tier, nom:file.replace(IMG_RE,""), path, img:"creatures/"+encPath(path) };
 }
 async function loadCustom(){
-  const set=new Set();
+  const found=new Map();                 // "tier/fichier" -> espèce
+  const add=(tier,file)=>{ if(TIER[tier] && IMG_RE.test(file)) found.set(tier+"/"+file,toSpecies(tier,file)); };
   try{                                   // 1) creatures/liste.js (fonctionne aussi en ouvrant le fichier sur l'ordinateur)
     await new Promise(res=>{ const sc=document.createElement("script"); sc.src="creatures/liste.js"; sc.onload=sc.onerror=res; document.head.appendChild(sc); });
-    if(Array.isArray(window.LISTE_CREATURES)) window.LISTE_CREATURES.forEach(f=>set.add(f));
+    const L=window.LISTE_CREATURES;
+    if(Array.isArray(L)) L.forEach(f=>add("commun",f));
+    else if(L&&typeof L==="object") for(const t in L) (L[t]||[]).forEach(f=>add(t,f));
   }catch(e){}
-  try{                                   // 2) l'API publique de GitHub liste le dossier (images ajoutées en ligne)
-    const r=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/creatures`);
-    if(r.ok){ const j=await r.json(); j.filter(x=>x.type==="file").forEach(x=>set.add(x.name)); }
+  try{                                   // 2) l'API publique de GitHub liste les sous-dossiers (images ajoutées en ligne)
+    const r=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/git/trees/main?recursive=1`);
+    if(r.ok){
+      const j=await r.json();
+      (j.tree||[]).filter(x=>x.type==="blob" && x.path.startsWith("creatures/")).forEach(x=>{
+        const p=x.path.slice(10).split("/");
+        if(p.length===2) add(p[0],p[1]); else if(p.length===1) add("commun",p[0]);
+      });
+    }
   }catch(e){}
-  const files=[...set];
-  CUSTOM=(files||[]).filter(f=>IMG_RE.test(f)).sort((a,b)=>a.localeCompare(b,"fr")).map(toSpecies);
-  const n=CUSTOM.length;
+  CUSTOM=[...found.values()].sort((a,b)=>a.nom.localeCompare(b.nom,"fr"));
   const el=$("#customInfo");
-  if(el) el.textContent = n ? n+" créature"+(n>1?"s":"")+" chargée"+(n>1?"s":"")+" depuis le dossier creatures/" : "Aucune image trouvée dans creatures/ (voir le README).";
+  if(el){
+    el.textContent = CUSTOM.length
+      ? TIERS.map(t=>t.nom+" : "+CUSTOM.filter(c=>c.tier===t.k).length).join(" · ")
+      : "Aucune image trouvée dans creatures/commun, creatures/rare ou creatures/legendaire (voir le README).";
+  }
 }
 
 function critterSVG(s){
-  const fb=s.file ? rawURL(s.file) : "";
+  const fb=rawURL(s.path);
   return `<img src="${s.img}" alt="${s.nom}" draggable="false" data-fb="${fb}" onerror="if(this.dataset.fb&&!this.dataset.t){this.dataset.t=1;this.src=this.dataset.fb}" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'">`;
 }
 
@@ -292,12 +322,19 @@ function drawStars(){
   for(let i=0;i<160;i++){ g.globalAlpha=.3+Math.random()*.7; g.fillStyle="#fff";
     g.beginPath(); g.arc(Math.random()*c.width,Math.random()*c.height,Math.random()*1.6+.3,0,7); g.fill(); }
 }
-function pickSpecies(){ return CUSTOM[Math.floor(Math.random()*CUSTOM.length)]; }
+function pickSpecies(){
+  const dispo=TIERS.filter(t=>CUSTOM.some(c=>c.tier===t.k));
+  let r=Math.random()*dispo.reduce((a,t)=>a+t.poids,0), tier=dispo[dispo.length-1];
+  for(const t of dispo){ r-=t.poids; if(r<=0){ tier=t; break; } }
+  const liste=CUSTOM.filter(c=>c.tier===tier.k);
+  return liste[Math.floor(Math.random()*liste.length)];
+}
 function spawn(){
   if(crit.length>=MAXC || !CUSTOM.length) return;
   const sp=pickSpecies(), S=SCENES[cfg.scene];
-  const el=document.createElement("div"); el.className="cr";
-  el.innerHTML=critterSVG(sp)+`<span class="nm">${sp.nom.replace(/[<>&]/g,"")}</span>`;
+  const el=document.createElement("div"); el.className="cr t-"+sp.tier;
+  el.innerHTML=critterSVG(sp)+`<span class="nm">${TIER[sp.tier].etoiles} ${sp.nom.replace(/[<>&]/g,"")}</span>`;
+  if(sp.tier!=="commun") announce(sp);
   const x=6+Math.random()*88, y=S.zone[0]+Math.random()*(S.zone[1]-S.zone[0]);
   el.style.left=x+"%"; el.style.top=y+"%"; el.style.zIndex=Math.round(y*10);
   el.querySelector("svg,img").style.animationDelay=(-Math.random()*3)+"s";
@@ -305,6 +342,13 @@ function spawn(){
   crit.push({el,sp,x});
   seen[sp.id]=(seen[sp.id]||0)+1; store.set("seen",seen);
   updateCount();
+}
+let bannerT=null;
+function announce(sp){
+  const b=$("#banner"); if(!b) return;
+  b.className="show "+sp.tier;
+  b.textContent=(sp.tier==="legendaire"?"✨ Créature légendaire : ":"★ Créature rare : ")+sp.nom;
+  clearTimeout(bannerT); bannerT=setTimeout(()=>b.className="",4500);
 }
 function leaveOne(){
   if(!crit.length) return;
@@ -388,11 +432,15 @@ $("#thr").oninput=e=>{ cfg.thr=+e.target.value; save(); };
 
 function renderCollection(){
   let n=0;
-  if(!CUSTOM.length){ $("#colGrid").innerHTML='<div style="grid-column:1/-1">Aucune créature : ajoute des images dans le dossier <b>creatures/</b> du dépôt.</div>'; $("#colN").textContent="0 / 0"; return; }
-  $("#colGrid").innerHTML = CUSTOM.map(s=>{
-    const c=seen[s.id]||0; if(c) n++;
-    const nom=s.nom.replace(/[<>&]/g,"");
-    return `<div class="sp ${c?"":"locked"}">${critterSVG(s)}<div>${c?nom:"???"}</div>${c?`<div style="opacity:.6">vu ${c} fois</div>`:""}</div>`;
+  if(!CUSTOM.length){ $("#colGrid").innerHTML='<div style="grid-column:1/-1">Aucune créature : ajoute des images dans les dossiers <b>creatures/commun</b>, <b>creatures/rare</b> ou <b>creatures/legendaire</b> du dépôt.</div>'; $("#colN").textContent="0 / 0"; return; }
+  $("#colGrid").innerHTML = TIERS.map(t=>{
+    const liste=CUSTOM.filter(c=>c.tier===t.k); if(!liste.length) return "";
+    const vues=liste.filter(c=>seen[c.id]).length; n+=vues;
+    return `<div style="grid-column:1/-1;font-weight:700;margin-top:8px">${t.etoiles} ${t.nom} <span class="tag">${vues} / ${liste.length}</span></div>`+
+      liste.map(s=>{
+        const c=seen[s.id]||0, nom=s.nom.replace(/[<>&]/g,"");
+        return `<div class="sp t-${t.k} ${c?"":"locked"}">${critterSVG(s)}<div>${c?nom:"???"}</div>${c?`<div style="opacity:.6">vu ${c} fois</div>`:""}</div>`;
+      }).join("");
   }).join("");
   $("#colN").textContent=n+" / "+CUSTOM.length;
 }

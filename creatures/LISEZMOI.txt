@@ -1,0 +1,6 @@
+Place tes images de créatures dans le sous-dossier de la rareté voulue :
+  creatures/commun/       sortent le plus souvent (70 % des apparitions)
+  creatures/rare/         sortent parfois (25 %)
+  creatures/legendaire/   sortent très rarement (5 %)
+Formats : png, jpg, gif, webp ou svg.
+Le nom dans le jeu est le nom du fichier sans l'extension : "Gloubi.png" donne "Gloubi".
