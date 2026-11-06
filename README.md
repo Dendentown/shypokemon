@@ -12,6 +12,6 @@ Un seul fichier, `index.html`. Pour le publier : Settings → Pages → Deploy f
 
 ## Ajouter des créatures
 
-Dépose les images dans `creatures/` (sur GitHub : `creatures` → Add file → Upload files). Elles apparaissent au prochain chargement de la page. Dans Réglages, « Seulement mes images » masque les créatures intégrées.
+Dépose les images dans `creatures/` (sur GitHub : `creatures` → Add file → Upload files). Elles apparaissent au prochain chargement de la page. Les créatures intégrées restent actives avec les tiennes ; dans Réglages, « Seulement mes images » les masque.
 
 La page lit le dossier via l'API publique de GitHub. Hors ligne ou en ouvrant le fichier sans le dépôt, ajoute un fichier `creatures/liste.json` contenant la liste des noms de fichiers, par exemple `["Gloubi.png","Tidou.png"]`.

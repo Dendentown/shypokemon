@@ -208,7 +208,7 @@ async function loadCustom(){
   const el=$("#customInfo");
   if(el) el.textContent = n ? n+" créature"+(n>1?"s":"")+" chargée"+(n>1?"s":"")+" depuis le dossier creatures/" : "Aucune image trouvée dans creatures/ (voir le README).";
 }
-function useBuiltin(){ return cfg.builtin===undefined ? CUSTOM.length===0 : cfg.builtin; }
+function useBuiltin(){ return cfg.builtin===undefined ? true : cfg.builtin; }
 
 function critterSVG(s){
   if(s.img) return `<img src="${s.img}" alt="${s.nom}" loading="lazy" draggable="false" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'">`;
