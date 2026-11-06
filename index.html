@@ -13,7 +13,7 @@
   .screen.on { display:block; }
 
   /* Accueil */
-  #home { background:linear-gradient(160deg,#cfe9ff,#f3ecff 55%,#ffe9d6); overflow:auto; }
+  #home { background:linear-gradient(#ffffffb0,#ffffffd8), url(fond.jpg) center/cover no-repeat, #dff0ff; overflow:auto; }
   .home-in { max-width:880px; margin:0 auto; padding:40px 20px 60px; text-align:center; }
   h1 { font-size:clamp(2rem,6vw,3.4rem); margin:.2em 0 .1em; }
   .sub { font-size:1.1rem; opacity:.8; margin-bottom:28px; }
@@ -159,8 +159,8 @@ const NOMS = {
   espace:["Astrolo","Cométou","Nébulle","Pulsarin","Lunaric","Orbito","Stellule","Zénoé","Quasar","Gravy","Météo","Cosmik"]
 };
 const SCENES = {
-  foret:{ nom:"Clairière", desc:"Forêt paisible", zone:[60,92],
-    bg:"linear-gradient(#bfe6ff 0%,#eaf7d9 52%,#8cc973 52%,#4f9a4f 100%)",
+  foret:{ nom:"Clairière", desc:"Forêt paisible", zone:[58,94],
+    bg:"url(fond.jpg) center/cover no-repeat, linear-gradient(#bfe6ff 0%,#eaf7d9 52%,#8cc973 52%,#4f9a4f 100%)",
     fog:"radial-gradient(circle,#f0f3ee 0%,#dfe6dc 100%)", hueBase:20 },
   ocean:{ nom:"Récif", desc:"Eaux turquoise", zone:[25,92],
     bg:"linear-gradient(#7fd8f0 0%,#2b9bd0 55%,#1b5e9b 100%)",
