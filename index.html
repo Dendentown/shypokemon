@@ -133,6 +133,13 @@
     <div class="row"><label>Mes créatures</label>
       <div id="customInfo" style="opacity:.75;font-size:.9rem"></div>
     </div>
+    <div class="row"><label>Sensibilité du micro</label>
+      <div class="seg" id="sensSeg">
+        <button data-v="haute">Haute (réagit au moindre bruit)</button>
+        <button data-v="normale">Normale</button>
+        <button data-v="basse">Basse (tolère plus de bruit)</button>
+      </div>
+    </div>
     <div class="row"><label>Calibrage (facultatif)</label>
       <button id="calBtn" class="seg" style="border:2px solid #cfd8e3;background:#fff;border-radius:10px;padding:8px 12px">Lancer : 4 s de silence, puis 4 s de voix normale</button>
       <div id="calmsg"></div>
@@ -201,7 +208,7 @@ const store = {
 const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 
-const cfg = Object.assign({ scene:"foret", goal:"indiv", thr:45, rhythm:"normal", mode:"fuite", cal:null }, store.get("cfg",{}));
+const cfg = Object.assign({ scene:"foret", goal:"indiv", thr:45, rhythm:"normal", mode:"fuite", sens:"normale", cal:null }, store.get("cfg",{}));
 let seen = store.get("seen",{});          // id -> nombre de rencontres
 const save = ()=>store.set("cfg",cfg);
 
@@ -252,11 +259,12 @@ function readLevel(){
 /* ---------- Seuils ---------- */
 function goalThreshold(){
   if(cfg.goal==="perso") return cfg.thr;
+  const shift={haute:-8,normale:0,basse:8}[cfg.sens]||0;
   if(cfg.cal){
     const {s,p}=cfg.cal, d=Math.max(8,p-s);
-    return s + d*({silence:0.18,indiv:0.38,binome:0.65}[cfg.goal]);
+    return s + d*({silence:0.18,indiv:0.38,binome:0.65}[cfg.goal]) + shift;
   }
-  return {silence:42,indiv:56,binome:68}[cfg.goal];
+  return {silence:42,indiv:56,binome:68}[cfg.goal] + shift;
 }
 
 /* ---------- Simulation de la scène ---------- */
@@ -367,12 +375,12 @@ $("#bSet").onclick=()=>{ syncSettings(); openPanel("#pSet"); };
 $("#bCol").onclick=()=>{ renderCollection(); openPanel("#pCol"); };
 
 function syncSettings(){
-  const map={goalSeg:"goal",rhySeg:"rhythm",modeSeg:"mode"};
+  const map={goalSeg:"goal",rhySeg:"rhythm",modeSeg:"mode",sensSeg:"sens"};
   for(const id in map) $$("#"+id+" button").forEach(b=>b.classList.toggle("on",b.dataset.v===cfg[map[id]]));
   $("#thr").style.display = cfg.goal==="perso"?"block":"none";
   $("#thr").value=cfg.thr;
 }
-for(const [id,key] of [["goalSeg","goal"],["rhySeg","rhythm"],["modeSeg","mode"]]){
+for(const [id,key] of [["goalSeg","goal"],["rhySeg","rhythm"],["modeSeg","mode"],["sensSeg","sens"]]){
   $$("#"+id+" button").forEach(b=>b.onclick=()=>{ cfg[key]=b.dataset.v; save(); syncSettings(); });
 }
 loadCustom();
