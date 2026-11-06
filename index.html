@@ -165,8 +165,11 @@ const SCENES = {
 /* ---------- Créatures personnalisées : dossier creatures/ ---------- */
 const IMG_RE=/\.(png|jpe?g|gif|webp|svg)$/i;
 let CUSTOM=[];
+let GH={owner:"Dendentown",repo:"shypokemon"};
+if(/\.github\.io$/.test(location.hostname)){ GH.owner=location.hostname.split(".")[0]; const sg=location.pathname.split("/")[1]; if(sg) GH.repo=sg; }
+function rawURL(file){ return `https://raw.githubusercontent.com/${GH.owner}/${GH.repo}/main/creatures/`+encodeURIComponent(file); }
 function toSpecies(file){
-  return { id:"img:"+file, nom:file.replace(IMG_RE,""), img:"creatures/"+encodeURIComponent(file), rare:false };
+  return { id:"img:"+file, file, nom:file.replace(IMG_RE,""), img:"creatures/"+encodeURIComponent(file), rare:false };
 }
 async function loadCustom(){
   const set=new Set();
@@ -175,12 +178,7 @@ async function loadCustom(){
     if(Array.isArray(window.LISTE_CREATURES)) window.LISTE_CREATURES.forEach(f=>set.add(f));
   }catch(e){}
   try{                                   // 2) l'API publique de GitHub liste le dossier (images ajoutées en ligne)
-    let owner="Dendentown", repo="shypokemon";
-    if(/\.github\.io$/.test(location.hostname)){
-      owner=location.hostname.split(".")[0];
-      const seg=location.pathname.split("/")[1]; if(seg) repo=seg;
-    }
-    const r=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/creatures`);
+    const r=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/creatures`);
     if(r.ok){ const j=await r.json(); j.filter(x=>x.type==="file").forEach(x=>set.add(x.name)); }
   }catch(e){}
   const files=[...set];
@@ -191,7 +189,8 @@ async function loadCustom(){
 }
 
 function critterSVG(s){
-  return `<img src="${s.img}" alt="${s.nom}" loading="lazy" draggable="false" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'">`;
+  const fb=s.file ? rawURL(s.file) : "";
+  return `<img src="${s.img}" alt="${s.nom}" draggable="false" data-fb="${fb}" onerror="if(this.dataset.fb&&!this.dataset.t){this.dataset.t=1;this.src=this.dataset.fb}" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'">`;
 }
 
 /* ---------- Stockage (facultatif, peut échouer) ---------- */
